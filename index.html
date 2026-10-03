@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meal Run</title>
+<meta name="theme-color" content="#0a171a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Meal Run">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>html{color-scheme:light}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Archivo:wght@400;600&display=swap">
+<style>
+/* Layout: slim event bar on top, one screen per tab (Tables / Runs / Kitchen / Setup), fixed bottom tab bar. Same look as Bar Run Tally. */
+:root{
+  --bg:#eef3f4;--surface:#ffffff;--surface2:#f5f9fa;--line:#cfdcdf;--fg:#0f2328;--muted:#5a7177;
+  --accent:#0e7c86;--accent-fg:#ffffff;--hit:#d6f0f1;
+  --ok:#1e7a46;--ok-bg:#dff3e6;--warn:#b4332b;--warn-bg:#fbe3e1;--flag:#8a5a00;--flag-bg:#fdf0d3;
+  --display:'Saira Condensed','Arial Narrow',sans-serif;--body:'Archivo',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a171a;--surface:#12262b;--surface2:#0f2125;--line:#21414a;--fg:#e6f2f3;--muted:#8aa6ad;
+  --accent:#2fb6c1;--accent-fg:#06191c;--hit:#174a52;
+  --ok:#5fd08f;--ok-bg:#153626;--warn:#ff8a80;--warn-bg:#431f1c;--flag:#f2b84b;--flag-bg:#3a2c10;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a171a;--surface:#12262b;--surface2:#0f2125;--line:#21414a;--fg:#e6f2f3;--muted:#8aa6ad;
+  --accent:#2fb6c1;--accent-fg:#06191c;--hit:#174a52;
+  --ok:#5fd08f;--ok-bg:#153626;--warn:#ff8a80;--warn-bg:#431f1c;--flag:#f2b84b;--flag-bg:#3a2c10;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{touch-action:manipulation}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{touch-action:manipulation}
+.wrap{padding:0 14px calc(104px + env(safe-area-inset-bottom,0px));max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.wrap.wide{max-width:1120px}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);border-bottom:1px solid var(--line);
+  padding:10px 14px;display:flex;align-items:center;gap:12px}
+.evbtn{flex:1;min-width:0;text-align:left;background:none;border:0;padding:2px 0;cursor:pointer}
+.evbtn b{display:block;font:800 20px/1.1 var(--display);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evbtn small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.evtot{text-align:right}
+.evtot b{display:block;font:800 26px/1 var(--display);font-variant-numeric:tabular-nums}
+.evtot small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* bottom tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,1fr);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+.tabs button{border:0;background:none;padding:8px 2px;min-height:54px;border-radius:12px;cursor:pointer;
+  font:800 16px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button small{font:600 11px var(--body);letter-spacing:0;text-transform:none}
+.tabs button.on{background:var(--hit);color:var(--fg)}
+
+/* shared */
+h2{font:800 13px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
+h3{margin:0}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;min-height:44px;cursor:pointer;font-weight:600;font-size:14px}
+.btn.on,.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.icon{min-width:44px;padding:8px 10px}
+.btn.danger{color:var(--warn)}
+.btn.armed{background:var(--warn);color:var(--bg);border-color:var(--warn)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.big{min-height:56px;font-size:16px;width:100%}
+:is(.btn,.tile,.chip,.pick,.tabs button,.evbtn,.minus):focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.muted{color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin:0}
+.empty{border:1px dashed var(--line);border-radius:14px;padding:18px;color:var(--muted);text-align:center;margin:0;display:flex;flex-direction:column;gap:10px;align-items:center}
+input,select,textarea{padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-height:44px;font-size:16px}
+textarea{width:100%;min-height:70px;resize:vertical}
+input{min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);flex:1 1 140px;min-width:0}
+label.f input,label.f select,label.f textarea{color:var(--fg);font-weight:400}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-weight:600;font-size:13px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.flag{background:var(--flag-bg);color:var(--flag)}
+.pill.plain{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.num{font-family:var(--display);font-weight:800;font-variant-numeric:tabular-nums}
+
+/* TABLES tab */
+.strip{display:flex;gap:8px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:thin;scroll-snap-type:x proximity}
+.chip{flex:0 0 auto;min-width:58px;min-height:56px;padding:6px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:center;position:relative}
+.chip b{font:800 22px/1 var(--display)}
+.chip small{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip.done{border-color:var(--accent)}
+.chip.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip.sel small{color:var(--accent-fg)}
+.chip.flagged::after{content:"";position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--flag)}
+.thead{display:grid;grid-template-columns:56px 1fr auto 56px;gap:10px;align-items:center}
+.thead .nav{height:56px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:800 26px var(--display);cursor:pointer}
+.thead .nav:disabled{opacity:.3}
+.tname small,.ttot small{display:block;font:600 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tname b{font:800 44px/1 var(--display);overflow-wrap:anywhere}
+.ttot{text-align:right}
+.ttot b{font:800 44px/1 var(--display);font-variant-numeric:tabular-nums;color:var(--accent)}
+.tmeta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tnote{background:var(--flag-bg);color:var(--flag);border-radius:12px;padding:10px 12px;font-size:14px;margin:0}
+.mgroup{display:flex;flex-direction:column;gap:8px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:14px;min-height:100px;
+  padding:12px 12px 12px 14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;gap:6px;user-select:none;-webkit-user-select:none}
+.tile.has{border-color:var(--accent);background:var(--hit)}
+.tile.special .mname::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--flag);margin-right:6px;vertical-align:1px}
+.mname{font-weight:600;font-size:15px;line-height:1.2;padding-right:46px;overflow-wrap:anywhere}
+.mcount{font:800 42px/1 var(--display);font-variant-numeric:tabular-nums}
+.tile:not(.has) .mcount{color:var(--muted);opacity:.45}
+.minus{position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);
+  background:var(--bg);font:800 24px/1 var(--display);cursor:pointer}
+
+/* RUNS tab */
+.cols{display:grid;gap:16px}
+@media (min-width:900px){.cols{grid-template-columns:minmax(0,5fr) minmax(0,7fr);align-items:start}}
+.capline{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted);padding-top:12px}
+.pickgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.pick{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;min-height:72px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;position:relative}
+.pick small{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.pick b{font:800 26px/1 var(--display)}
+.pick span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pick.zero{opacity:.55}
+.pick.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.pick.on small,.pick.on span{color:var(--accent-fg)}
+.pick.on::after{content:"✓";position:absolute;top:8px;right:10px;font-weight:700}
+.tray{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5;background:var(--surface);border:2px solid var(--accent);
+  border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.tray .sum{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tray .sum b{font:800 24px/1 var(--display)}
+.run{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.run.over{border-color:var(--warn)}
+.runhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.runhead h3{font:800 24px/1 var(--display);letter-spacing:.02em}
+.runhead .tot{font:800 30px/1 var(--display);font-variant-numeric:tabular-nums;margin-left:auto}
+.runhead .tot small{font:600 12px var(--body);color:var(--muted);margin-left:4px}
+.rtables{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.rt{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.rt b{font:800 20px var(--display);min-width:3.4em}
+.rt span{flex:1;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.rt select{min-height:44px;padding:6px 8px;font-size:16px;max-width:52%}
+.brk{font-size:14px;line-height:1.5;margin:0}
+.brk b{font-variant-numeric:tabular-nums}
+.shelves{display:flex;flex-direction:column;gap:4px;margin:0;font-size:14px}
+.shelf{display:grid;grid-template-columns:4.6em 3.4em 1fr;gap:6px;align-items:baseline;padding:6px 10px;border-radius:10px;background:var(--surface2)}
+.shelf b{font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.shelf .fill{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.shelf.warn{background:var(--warn-bg);color:var(--warn)}
+.shelf.warn b,.shelf.warn .fill{color:var(--warn)}
+.sug{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.sug li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:10px;flex-wrap:wrap}
+
+/* KITCHEN tab */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;align-items:start}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.kcard.over{border-color:var(--warn)}
+.kcard.total{border:2px solid var(--accent)}
+.kcard h3{font:800 28px/1 var(--display);letter-spacing:.04em;text-transform:uppercase}
+.kcard .ktables{font:800 18px var(--display);color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:0}
+.ktab{width:100%;border-collapse:collapse;font-size:18px}
+.ktab td{padding:7px 0;border-bottom:1px solid var(--line)}
+.ktab td:last-child{text-align:right;font:800 24px var(--display);font-variant-numeric:tabular-nums}
+.ktab tr.sp td:first-child::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--flag);margin-right:8px;vertical-align:2px}
+.ktotal{display:flex;justify-content:space-between;align-items:baseline;font:800 22px var(--display);letter-spacing:.06em;text-transform:uppercase}
+.ktotal b{font-size:40px;font-variant-numeric:tabular-nums}
+.knotes{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.knotes li{background:var(--flag-bg);color:var(--flag);border-radius:10px;padding:8px 10px;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-top:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat b{font:800 30px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.sheet{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.sheet th,.sheet td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.sheet th:first-child,.sheet td:first-child{text-align:left;font-weight:700}
+.sheet thead th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surface2)}
+.sheet tfoot td{font-weight:700;background:var(--surface2)}
+.sheet td.z{color:var(--muted);opacity:.5}
+.copyout{width:100%;min-height:200px;font-family:ui-monospace,monospace;font-size:13px}
+
+/* SETUP tab */
+.srow{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;padding:8px 0;border-top:1px solid var(--line)}
+.srow.wrapok{flex-wrap:wrap}
+.panel>label.f{flex:none}
+.srow:first-child{border-top:0}
+.srow .grow{flex:1 1 60px;min-width:60px}
+.srow select{flex:0 0 auto}
+.srow .sub{flex-basis:100%;min-width:0;display:flex;gap:6px}
+.srow .sub input{flex:1;min-width:0;min-height:44px;font-size:16px;padding:6px 10px}
+.srow .meta{font-size:13px;color:var(--muted);min-width:4.5em;text-align:right;font-variant-numeric:tabular-nums}
+.quick{display:flex;flex-wrap:wrap;gap:6px}
+.quick .btn{min-height:38px;padding:6px 12px;font-size:13px}
+.capgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.capgrid input{width:100%;font-family:var(--display);font-weight:800;font-size:22px}
+@media (max-width:380px){.capgrid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.tile:active,.pick:active{transform:scale(.97)}.tile,.pick{transition:transform .06s}}
+</style>
+
+<header class="top">
+  <button class="evbtn" data-act="goTab" data-tab="setup"><b id="evName"></b><small id="evSub"></small></button>
+  <div class="evtot"><b id="evTot">0</b><small>meals</small></div>
+</header>
+<main class="wrap" id="view"></main>
+<nav class="tabs" aria-label="Sections">
+  <button data-act="goTab" data-tab="tables" id="tab-tables">Tables<small id="tabc-tables"></small></button>
+  <button data-act="goTab" data-tab="runs" id="tab-runs">Runs<small id="tabc-runs"></small></button>
+  <button data-act="goTab" data-tab="kitchen" id="tab-kitchen">Kitchen<small id="tabc-kitchen"></small></button>
+  <button data-act="goTab" data-tab="setup" id="tab-setup">Setup<small>&nbsp;</small></button>
+</nav>
+
+<script>
+/* ---------- Data model ----------
+  DB = { currentId, events:[Event] }
+  Event = { id, name, date, notes, cap:{total,top,middle},
+            meals:[{id,name,cat:'standard'|'special',note}],
+            tables:[{id,num,note,counts:{mealId:qty}}],      // tables are the source of truth
+            runs:[{id,note,tables:[tableId]}] }               // runs only reference tables; totals are always computed
+*/
+const KEY='mealRun.v1';
+const QUICK_SPECIALS=['Vegetarian','Vegan','Gluten Free','Dairy Free','Dairy Free + Gluten Free','Vegetarian + Gluten Free','Vegan + Gluten Free','Nut Allergy','Halal','Other – see notes'];
+const $=s=>document.querySelector(s);
+const view=$('#view');
+const uid=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const fmtDate=iso=>{if(!iso)return'';const d=new Date(iso+'T12:00:00');return isNaN(d)?iso:d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})};
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+
+function makeEvent(name){
+  return{id:uid(),name:name||'New event',date:today(),notes:'',cap:{total:24,top:16,middle:12},shelf:{auto:true,top:[]},
+    meals:['Beef','Chicken','Kids'].map(n=>({id:uid(),name:n,cat:'standard',note:''})),tables:[],runs:[]};
+}
+function normalize(e){
+  e.meals=Array.isArray(e.meals)?e.meals:[];e.tables=Array.isArray(e.tables)?e.tables:[];e.runs=Array.isArray(e.runs)?e.runs:[];
+  e.cap=Object.assign({total:24,top:16,middle:12},e.cap||{});
+  const sh=e.shelf||{};
+  if(typeof sh.auto!=='boolean')e.shelf={auto:!sh.top||sh.top==='auto',top:sh.top&&sh.top!=='auto'?[sh.top]:[]};
+  e.shelf.top=(Array.isArray(e.shelf.top)?e.shelf.top:[]).filter(id=>e.meals.some(m=>m.id===id));
+  e.tables.forEach(t=>{t.counts=t.counts||{};t.note=t.note||'';t.num=String(t.num??'')});
+  const ids=new Set(e.tables.map(t=>t.id)),seen=new Set();
+  e.runs.forEach(r=>{r.note=r.note||'';r.tables=(r.tables||[]).filter(id=>ids.has(id)&&!seen.has(id)&&seen.add(id))});
+}
+
+let DB;
+try{DB=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!DB||!Array.isArray(DB.events)||!DB.events.length){const s=makeEvent();DB={currentId:s.id,events:[s]};try{localStorage.setItem(KEY+'.tab','setup')}catch(e){}}
+DB.events.forEach(normalize);
+if(!DB.events.some(e=>e.id===DB.currentId))DB.currentId=DB.events[0].id;
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}};
+const ev=()=>DB.events.find(e=>e.id===DB.currentId);
+
+const ui={tab:'tables',tableId:null,noteOpen:false,selected:new Set(),suggest:null,armed:null,armedT:0,copyText:null,msg:''};
+try{const t=localStorage.getItem(KEY+'.tab');if(['tables','runs','kitchen','setup'].includes(t))ui.tab=t}catch(e){}
+
+/* ---------- Calculations (always from table data) ---------- */
+const cnt=(t,mid)=>t.counts[mid]||0;
+const tTotal=(E,t)=>E.meals.reduce((a,m)=>a+cnt(t,m.id),0);
+const tById=(E,id)=>E.tables.find(t=>t.id===id);
+const runIdx=(E,tid)=>E.runs.findIndex(r=>r.tables.includes(tid));
+const unassigned=E=>E.tables.filter(t=>runIdx(E,t.id)<0);
+function sum(E,ids){const by={};let total=0;
+  ids.forEach(id=>{const t=tById(E,id);if(!t)return;E.meals.forEach(m=>{const n=cnt(t,m.id);if(n){by[m.id]=(by[m.id]||0)+n;total+=n}})});
+  return{by,total}}
+const effCap=E=>Math.max(0,Math.min(+E.cap.total||0,(+E.cap.top||0)+(+E.cap.middle||0)));
+function capInfo(E,n){const cap=effCap(E),top=Math.min(n,+E.cap.top||0);return{fits:n<=cap,over:n-cap,top,mid:n-top,cap}}
+function capPill(E,n){const c=capInfo(E,n);return c.fits?`<span class="pill ok">✓ Fits on cart</span>`:`<span class="pill warn">⚠ Over capacity by ${c.over}</span>`}
+/* Cart loading suggestion.
+   Auto (default): the biggest meal goes on top; everything else goes in the middle.
+   Manual: the meals picked in Setup go on top; everything else goes in the middle.
+   Each shelf takes its meals smallest first, so the big meal is the one that overflows;
+   overflow moves to the other shelf if there is room, and anything left is "No room". */
+function shelfPlan(E,by){
+  const left={top:+E.cap.top||0,mid:+E.cap.middle||0},plan={top:[],mid:[],out:[]};
+  const add=(sh,m,n)=>{if(n<=0)return;const e=plan[sh].find(x=>x[0]===m);e?e[1]+=n:plan[sh].push([m,n]);if(sh!=='out')left[sh]-=n};
+  const meals=E.meals.filter(m=>by[m.id]);
+  let topSet;
+  if(E.shelf.auto){const big=[...meals].filter(m=>m.cat!=='special').sort((a,b)=>by[b.id]-by[a.id])[0]||[...meals].sort((a,b)=>by[b.id]-by[a.id])[0];topSet=new Set(big?[big.id]:[])}
+  else topSet=new Set(E.shelf.top);
+  const home=m=>topSet.has(m.id)?'top':'mid';
+  const asc=[...meals].sort((a,b)=>by[a.id]-by[b.id]),rest={};
+  asc.forEach(m=>{const h=home(m),x=Math.min(by[m.id],left[h]);add(h,m,x);rest[m.id]=by[m.id]-x});
+  asc.forEach(m=>{let n=rest[m.id];if(!n)return;const o=home(m)==='top'?'mid':'top',x=Math.min(n,left[o]);add(o,m,x);add('out',m,n-x)});
+  return plan;
+}
+const shelfOrd=a=>[...a].sort((x,y)=>((x[0].cat==='special')-(y[0].cat==='special'))||y[1]-x[1]);
+function shelfHtml(E,by){
+  const p=shelfPlan(E,by),list=a=>shelfOrd(a).map(([m,n])=>`${esc(m.name)} <b style="font:inherit;font-weight:700;color:inherit;letter-spacing:0;text-transform:none">${n}</b>`).join(' · ')||'<span class="muted">—</span>';
+  const used=a=>a.reduce((x,[,n])=>x+n,0);
+  if(!p.top.length&&!p.mid.length&&!p.out.length)return'';
+  return `<div class="shelves">
+    <div class="shelf"><b>Top</b><span class="fill">${used(p.top)}/${+E.cap.top||0}</span><span>${list(p.top)}</span></div>
+    <div class="shelf"><b>Middle</b><span class="fill">${used(p.mid)}/${+E.cap.middle||0}</span><span>${list(p.mid)}</span></div>
+    ${p.out.length?`<div class="shelf warn"><b>No room</b><span class="fill">${used(p.out)}</span><span>${list(p.out)}</span></div>`:''}
+  </div>`;
+}
+function shelfText(E,by){const p=shelfPlan(E,by),l=a=>shelfOrd(a).map(([m,n])=>`${m.name} ${n}`).join(', ');
+  return [p.top.length?`Top: ${l(p.top)}`:'',p.mid.length?`Middle: ${l(p.mid)}`:'',p.out.length?`No room: ${l(p.out)}`:''].filter(Boolean).join(' | ')}
+const sortedMeals=E=>[...E.meals.filter(m=>m.cat!=='special'),...E.meals.filter(m=>m.cat==='special')];
+const tableNums=(E,ids)=>ids.map(id=>tById(E,id)?.num).filter(Boolean);
+
+/* Suggested runs: keep tables in floor order, use as few runs as the cart allows, then balance them. */
+function suggest(E){
+  const cap=effCap(E),T=unassigned(E).filter(t=>tTotal(E,t)>0),w=T.map(t=>tTotal(E,t)),N=w.length;
+  if(!N||!cap)return[];
+  let k=1,s=0;w.forEach((x,i)=>{if(i&&s+x>cap){k++;s=0}s+=x});
+  const pre=[0];w.forEach(x=>pre.push(pre[pre.length-1]+x));
+  const INF=1e9,best=[...Array(k+1)].map(()=>Array(N+1).fill(INF)),cut=[...Array(k+1)].map(()=>Array(N+1).fill(0));best[0][0]=0;
+  for(let j=1;j<=k;j++)for(let i=1;i<=N;i++)for(let p=j-1;p<i;p++){
+    const g=pre[i]-pre[p];if(g>cap&&i-p>1)continue;const v=Math.max(best[j-1][p],g);if(v<best[j][i]){best[j][i]=v;cut[j][i]=p}}
+  const out=[];let i=N;for(let j=k;j>0;j--){const p=cut[j][i];out.unshift(T.slice(p,i).map(t=>t.id));i=p}
+  return out;
+}
+
+/* ---------- Small templates ---------- */
+function delBtn(key,act,id,warn){
+  const on=ui.armed===key;
+  return `<button class="btn icon danger${on?' armed':''}" data-act="${act}" data-id="${esc(id)}" aria-label="${on?'Tap again to confirm':'Remove'}">${on?esc(warn):'✕'}</button>`;
+}
+function confirmed(key){ // two-tap confirm, no dialogs
+  if(ui.armed===key){ui.armed=null;clearTimeout(ui.armedT);return true}
+  ui.armed=key;clearTimeout(ui.armedT);ui.armedT=setTimeout(()=>{ui.armed=null;render()},4000);render();return false;
+}
+function breakdown(E,by){
+  const parts=sortedMeals(E).filter(m=>by[m.id]).map(m=>`${esc(m.name)} <b>${by[m.id]}</b>`);
+  return parts.length?parts.join(' · '):'<span class="muted">No meals counted</span>';
+}
+
+/* ---------- TABLES ---------- */
+function vTables(E){
+  if(!E.tables.length)return `<div class="empty" style="margin-top:14px"><b>No tables yet</b>Add this event's table numbers in Setup.<button class="btn primary" data-act="goTab" data-tab="setup">Go to Setup</button></div>`;
+  if(!tById(E,ui.tableId))ui.tableId=E.tables[0].id;
+  const t=tById(E,ui.tableId),i=E.tables.indexOf(t),ri=runIdx(E,t.id),tot=tTotal(E,t);
+  const chips=E.tables.map(x=>{const n=tTotal(E,x),r=runIdx(E,x.id);
+    return `<button class="chip${x.id===t.id?' sel':''}${n?' done':''}${x.note?' flagged':''}" data-act="selTable" data-id="${x.id}" id="chip-${x.id}" aria-label="Table ${esc(x.num)}, ${n} meals"><b>${esc(x.num)}</b><small>${n}${r>=0?' · R'+(r+1):''}</small></button>`}).join('');
+  const tile=m=>{const n=cnt(t,m.id);
+    return `<div class="tile${n?' has':''}${m.cat==='special'?' special':''}" role="button" tabindex="0" data-tap="${m.id}" id="tile-${m.id}" aria-label="${esc(m.name)}: ${n}. Tap to add one">
+      <span class="mname">${esc(m.name)}</span><span class="mcount" id="c-${m.id}">${n}</span>
+      <button class="minus" data-minus="${m.id}" aria-label="Remove one ${esc(m.name)}">−</button></div>`};
+  const std=E.meals.filter(m=>m.cat!=='special'),sp=E.meals.filter(m=>m.cat==='special');
+  const next=E.tables[i+1];
+  return `
+  <div class="strip" id="strip">${chips}</div>
+  <div class="thead">
+    <button class="nav" data-act="stepTable" data-d="-1" ${i===0?'disabled':''} aria-label="Previous table">‹</button>
+    <div class="tname"><small>Table</small><b>${esc(t.num)}</b></div>
+    <div class="ttot"><small>Meals</small><b id="tTot">${tot}</b></div>
+    <button class="nav" data-act="stepTable" data-d="1" ${!next?'disabled':''} aria-label="Next table">›</button>
+  </div>
+  <div class="tmeta">
+    ${ri>=0?`<span class="pill ok">In Run ${ri+1}</span>`:`<span class="pill plain">Not in a run</span>`}
+    <button class="btn" data-act="toggleNote">${t.note?'Edit note':'Add note'}</button>
+  </div>
+  ${ui.noteOpen?`<label class="f">Table ${esc(t.num)} note<textarea id="tableNote" data-chg="tableNote" placeholder="e.g. Guest with severe dairy allergy; confirm meal before serving.">${esc(t.note)}</textarea></label>`
+    :(t.note?`<p class="tnote">⚠ ${esc(t.note)}</p>`:'')}
+  ${!E.meals.length?`<div class="empty">No meal types yet.<button class="btn primary" data-act="goTab" data-tab="setup">Add meal types</button></div>`:''}
+  ${std.length?`<div class="mgroup"><h2>Standard</h2><div class="mgrid">${std.map(tile).join('')}</div></div>`:''}
+  ${sp.length?`<div class="mgroup"><h2>Special / dietary</h2><div class="mgrid">${sp.map(tile).join('')}</div></div>`:''}
+  ${next?`<button class="btn big primary" data-act="stepTable" data-d="1">Next: Table ${esc(next.num)} →</button>`
+        :`<button class="btn big primary" data-act="goTab" data-tab="runs">All tables done → Plan runs</button>`}`;
+}
+/* Fast path for taps: update only the numbers, never rebuild the screen under a finger. */
+function bump(mid,d){
+  const E=ev(),t=tById(E,ui.tableId);if(!t||!E.meals.some(m=>m.id===mid))return;
+  const n=Math.max(0,cnt(t,mid)+d);if(n)t.counts[mid]=n;else delete t.counts[mid];
+  save();
+  const tile=document.getElementById('tile-'+mid);
+  if(tile){tile.classList.toggle('has',n>0);document.getElementById('c-'+mid).textContent=n;
+    tile.setAttribute('aria-label',`${E.meals.find(m=>m.id===mid).name}: ${n}. Tap to add one`)}
+  const tot=tTotal(E,t),el=document.getElementById('tTot');if(el)el.textContent=tot;
+  const chip=document.getElementById('chip-'+t.id);
+  if(chip){const r=runIdx(E,t.id);chip.classList.toggle('done',tot>0);chip.querySelector('small').textContent=tot+(r>=0?' · R'+(r+1):'')}
+  renderHeader();
+}
+
+/* ---------- RUNS ---------- */
+function vRuns(E){
+  const un=unassigned(E);
+  [...ui.selected].forEach(id=>{if(!un.some(t=>t.id===id))ui.selected.delete(id)});
+  const selIds=E.tables.filter(t=>ui.selected.has(t.id)).map(t=>t.id),selSum=sum(E,selIds);
+  const unSum=sum(E,un.map(t=>t.id));
+  const picks=un.map(t=>{const n=tTotal(E,t);
+    return `<button class="pick${ui.selected.has(t.id)?' on':''}${n?'':' zero'}" data-act="pick" data-id="${t.id}" aria-pressed="${ui.selected.has(t.id)}"><small>Table</small><b>${esc(t.num)}</b><span>${n?plural(n,'meal'):'not counted'}</span></button>`}).join('');
+  const sug=ui.suggest?(ui.suggest.length?`
+    <div class="panel"><h2>Suggested runs</h2>
+      <ul class="sug">${ui.suggest.map(g=>{const s=sum(E,g);return `<li><span><b>${tableNums(E,g).join(' + ')}</b> · ${plural(s.total,'meal')}</span>${capPill(E,s.total)}</li>`}).join('')}</ul>
+      <div class="row"><button class="btn primary" data-act="useSuggest">Use these runs</button><button class="btn" data-act="dismissSuggest">Dismiss</button></div>
+      <p class="note">Suggestions keep tables in the order you set in Setup. You can change anything after.</p></div>`
+    :`<div class="panel"><p class="note">Nothing to suggest. Count some tables first.</p><button class="btn" data-act="dismissSuggest">OK</button></div>`):'';
+  const tray=selIds.length?`
+    <div class="tray" aria-live="polite">
+      <div class="sum"><span>Tables <b>${tableNums(E,selIds).join(' + ')}</b></span><span class="num" style="font-size:24px">${plural(selSum.total,'meal')}</span>${capPill(E,selSum.total)}</div>
+      <p class="brk">${breakdown(E,selSum.by)}</p>
+      ${shelfHtml(E,selSum.by)}
+      <div class="row">
+        <button class="btn primary" data-act="newRun">Make Run ${E.runs.length+1}</button>
+        ${E.runs.length?`<select data-chg="addToRun" aria-label="Add selected tables to an existing run"><option value="">Add to run…</option>${E.runs.map((r,i)=>{const n=sum(E,r.tables).total+selSum.total;return `<option value="${r.id}">Run ${i+1} (would be ${n})</option>`}).join('')}</select>`:''}
+        <button class="btn" data-act="clearSel">Clear</button>
+      </div></div>`:'';
+  const runs=E.runs.map((r,i)=>{const s=sum(E,r.tables),c=capInfo(E,s.total);
+    const rows=r.tables.map(id=>{const t=tById(E,id),n=tTotal(E,t);
+      return `<div class="rt"><b>T${esc(t.num)}</b><span>${plural(n,'meal')}${t.note?' · ⚠ note':''}</span>
+        <select data-chg="moveTable" data-id="${t.id}" aria-label="Move table ${esc(t.num)}"><option value="">Move…</option><option value="__un">Remove from run</option>${E.runs.map((x,j)=>j===i?'':`<option value="${x.id}">To Run ${j+1}</option>`).join('')}<option value="__new">To a new run</option></select></div>`}).join('');
+    return `<article class="run${c.fits?'':' over'}">
+      <div class="runhead"><h3>Run ${i+1}</h3>${s.total?capPill(E,s.total):''}<div class="tot">${s.total}<small>meals</small></div></div>
+      <div class="rtables">${rows||'<p class="note" style="padding:8px 0">No tables. Add some from Unassigned.</p>'}</div>
+      <p class="brk">${breakdown(E,s.by)}</p>
+      ${shelfHtml(E,s.by)}
+      <input data-chg="runNote" data-id="${r.id}" value="${esc(r.note)}" placeholder="Run note (optional), e.g. take desserts" aria-label="Run ${i+1} note">
+      <div class="row">
+        <button class="btn icon" data-act="runMove" data-id="${r.id}" data-d="-1" ${i===0?'disabled':''} aria-label="Move run up">↑</button>
+        <button class="btn icon" data-act="runMove" data-id="${r.id}" data-d="1" ${i===E.runs.length-1?'disabled':''} aria-label="Move run down">↓</button>
+        <span style="flex:1"></span>
+        <button class="btn danger" data-act="runDel" data-id="${r.id}">Delete run</button>
+      </div></article>`}).join('');
+  return `
+  <div class="capline"><span>Cart holds <b>${effCap(E)}</b> (top ${+E.cap.top||0} · middle ${+E.cap.middle||0})</span><button class="btn" data-act="goTab" data-tab="setup" style="min-height:34px;padding:4px 10px">Change</button></div>
+  <div class="cols">
+    <section class="panel" aria-labelledby="unH">
+      <div class="row" style="justify-content:space-between"><h2 id="unH">Unassigned · ${plural(un.length,'table')} · ${plural(unSum.total,'meal')}</h2></div>
+      ${un.length?`<p class="note">Tap tables to select them, then make a run.</p><div class="pickgrid">${picks}</div>`
+        :`<p class="note">${E.tables.length?'Every table is in a run.':'No tables yet. Add them in Setup.'}</p>`}
+      ${un.length?`<div class="row"><button class="btn" data-act="suggestRuns">Suggest runs</button>${un.length>1?`<button class="btn" data-act="selAll">Select all</button>`:''}</div>`:''}
+    </section>
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      ${sug}
+      ${runs||`<div class="empty">No runs yet. Select two or more tables and tap “Make Run 1”.</div>`}
+    </div>
+  </div>
+  ${tray}`;
+}
+
+/* ---------- KITCHEN ---------- */
+function kitchenCard(E,title,sub,ids,extraClass,notes){
+  const s=sum(E,ids),c=capInfo(E,s.total);
+  const rows=sortedMeals(E).filter(m=>s.by[m.id]).map(m=>`<tr${m.cat==='special'?' class="sp"':''}><td>${esc(m.name)}</td><td>${s.by[m.id]}</td></tr>`).join('');
+  const nl=(notes||[]).map(n=>`<li>⚠ ${n}</li>`).join('');
+  return `<article class="kcard ${extraClass||''}${extraClass==='run'&&!c.fits?' over':''}">
+    <h3>${title}</h3>${sub?`<p class="ktables">${sub}</p>`:''}
+    ${rows?`<table class="ktab"><tbody>${rows}</tbody></table>`:'<p class="note">No meals.</p>'}
+    <div class="ktotal"><span>Total</span><b>${s.total}</b></div>
+    ${extraClass==='run'&&!c.fits?capPill(E,s.total):''}
+    ${extraClass==='run'?shelfHtml(E,s.by):''}
+    ${nl?`<ul class="knotes">${nl}</ul>`:''}</article>`;
+}
+function notesFor(E,ids,runNote){
+  const out=[];if(runNote)out.push('Run: '+esc(runNote));
+  ids.forEach(id=>{const t=tById(E,id);if(t&&t.note)out.push(`Table ${esc(t.num)}: ${esc(t.note)}`)});
+  const s=sum(E,ids);E.meals.forEach(m=>{if(m.note&&s.by[m.id])out.push(`${esc(m.name)}: ${esc(m.note)}`)});
+  return out;
+}
+function vKitchen(E){
+  const all=E.tables.map(t=>t.id),un=unassigned(E).map(t=>t.id),tot=sum(E,all),rem=sum(E,un);
+  const runs=E.runs.map((r,i)=>kitchenCard(E,`Run ${i+1}`,`Tables ${tableNums(E,r.tables).join(' + ')||'—'}`,r.tables,'run',notesFor(E,r.tables,r.note))).join('');
+  const cols=sortedMeals(E);
+  const sheet=E.tables.length?`<div class="scroll"><table class="sheet"><thead><tr><th>Table</th>${cols.map(m=>`<th>${esc(m.name)}</th>`).join('')}<th>Total</th><th>Run</th></tr></thead>
+    <tbody>${E.tables.map(t=>{const r=runIdx(E,t.id);return `<tr><td>${esc(t.num)}${t.note?' ⚠':''}</td>${cols.map(m=>{const n=cnt(t,m.id);return `<td${n?'':' class="z"'}>${n}</td>`}).join('')}<td><b>${tTotal(E,t)}</b></td><td>${r>=0?r+1:'—'}</td></tr>`}).join('')}</tbody>
+    <tfoot><tr><td>Total</td>${cols.map(m=>`<td>${tot.by[m.id]||0}</td>`).join('')}<td>${tot.total}</td><td></td></tr></tfoot></table></div>`:'';
+  return `
+  <div class="stats">
+    <div class="stat"><small>Event total</small><b>${tot.total}</b></div>
+    <div class="stat"><small>In runs</small><b>${tot.total-rem.total}</b></div>
+    <div class="stat"><small>Remaining</small><b>${rem.total}</b></div>
+  </div>
+  <div class="row"><button class="btn primary" data-act="copyKitchen">Copy for kitchen</button><span class="note">${plural(E.runs.length,'run')} planned</span></div>
+  ${ui.copyText!==null?`<label class="f">Copy this text<textarea class="copyout" id="copyOut" readonly>${esc(ui.copyText)}</textarea></label>`:''}
+  ${E.runs.length?`<h2>Serving runs</h2><div class="kgrid">${runs}</div>`:`<div class="empty">No serving runs yet.<button class="btn primary" data-act="goTab" data-tab="runs">Plan runs</button></div>`}
+  <h2>Still to come</h2>
+  <div class="kgrid">
+    ${un.length?kitchenCard(E,'Remaining',`Tables ${tableNums(E,un).join(', ')}`,un,'',[]):`<div class="empty">Every table is in a run.</div>`}
+    ${kitchenCard(E,'Event total',`${plural(E.tables.length,'table')}`,all,'total',E.meals.filter(m=>m.note&&tot.by[m.id]).map(m=>`${esc(m.name)}: ${esc(m.note)}`))}
+  </div>
+  ${sheet?`<h2>Table sheet</h2>${sheet}`:''}`;
+}
+function kitchenText(E){
+  const L=[`${E.name}${E.date?' — '+fmtDate(E.date):''}`,''];
+  const block=(title,ids,extra)=>{const s=sum(E,ids);L.push(title);sortedMeals(E).forEach(m=>{if(s.by[m.id])L.push(`${m.name}: ${s.by[m.id]}`)});L.push(`TOTAL: ${s.total}`);if(/^RUN /.test(title)){const sh=shelfText(E,s.by);if(sh)L.push('Cart — '+sh)}(extra||[]).forEach(x=>L.push('! '+x));L.push('')};
+  const plain=s=>s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  E.runs.forEach((r,i)=>block(`RUN ${i+1} — TABLES ${tableNums(E,r.tables).join(' + ')}`,r.tables,notesFor(E,r.tables,r.note).map(plain)));
+  const un=unassigned(E).map(t=>t.id);if(un.length)block(`REMAINING — TABLES ${tableNums(E,un).join(', ')}`,un);
+  block('EVENT TOTAL',E.tables.map(t=>t.id));
+  return L.join('\n').trim();
+}
+
+/* ---------- SETUP ---------- */
+function vSetup(E){
+  const counted=mid=>E.tables.reduce((a,t)=>a+cnt(t,mid),0);
+  const mealRow=(m,i,list)=>{const n=counted(m.id);
+    return `<div class="srow${ui.armed==='meal:'+m.id?' wrapok':''}" style="flex-wrap:wrap">
+      <div class="row" style="flex:1 1 100%;min-width:0;flex-wrap:nowrap;gap:6px">
+        <input class="grow" data-chg="mealName" data-id="${m.id}" value="${esc(m.name)}" aria-label="Meal name">
+        <select data-chg="mealCat" data-id="${m.id}" aria-label="Meal group"><option value="standard"${m.cat!=='special'?' selected':''}>Standard</option><option value="special"${m.cat==='special'?' selected':''}>Special</option></select>
+        ${delBtn('meal:'+m.id,'mealDel',m.id,`Remove · ${n} counted`)}
+      </div>
+      <div class="sub"><input data-chg="mealNote" data-id="${m.id}" value="${esc(m.note)}" placeholder="Note for kitchen (optional)" aria-label="${esc(m.name)} note">
+        <button class="btn icon" data-act="mealMove" data-id="${m.id}" data-d="-1" ${i===0?'disabled':''} aria-label="Move up">↑</button>
+        <button class="btn icon" data-act="mealMove" data-id="${m.id}" data-d="1" ${i===list.length-1?'disabled':''} aria-label="Move down">↓</button></div>
+    </div>`};
+  const std=E.meals.filter(m=>m.cat!=='special'),sp=E.meals.filter(m=>m.cat==='special');
+  const have=new Set(E.meals.map(m=>m.name.toLowerCase()));
+  const quick=QUICK_SPECIALS.filter(q=>!have.has(q.toLowerCase()));
+  const tableRows=E.tables.map((t,i)=>{const n=tTotal(E,t);
+    return `<div class="srow${ui.armed==='table:'+t.id?' wrapok':''}">
+      <input class="grow" data-chg="tableNum" data-id="${t.id}" value="${esc(t.num)}" aria-label="Table number" inputmode="text">
+      <span class="meta">${plural(n,'meal')}</span>
+      <button class="btn icon" data-act="tableMove" data-id="${t.id}" data-d="-1" ${i===0?'disabled':''} aria-label="Move up">↑</button>
+      <button class="btn icon" data-act="tableMove" data-id="${t.id}" data-d="1" ${i===E.tables.length-1?'disabled':''} aria-label="Move down">↓</button>
+      ${delBtn('table:'+t.id,'tableDel',t.id,`Remove · ${n} meals`)}
+    </div>`}).join('');
+  return `
+  <section class="panel" style="margin-top:14px" aria-labelledby="evH">
+    <h2 id="evH">Event</h2>
+    <label class="f">Open event<select data-chg="evSwitch" id="evSwitch">${DB.events.map(e=>`<option value="${e.id}"${e.id===E.id?' selected':''}>${esc(e.name)}${e.date?' · '+esc(e.date):''}</option>`).join('')}</select></label>
+    <div class="row">
+      <label class="f">Name<input id="evNameIn" data-chg="evName" value="${esc(E.name)}"></label>
+      <label class="f" style="flex:0 1 170px">Date<input type="date" id="evDateIn" data-chg="evDate" value="${esc(E.date)}"></label>
+    </div>
+    <label class="f">Event notes (optional)<textarea id="evNotesIn" data-chg="evNotes">${esc(E.notes)}</textarea></label>
+    <div class="row">
+      <button class="btn primary" data-act="newEvent">New event</button>
+      <button class="btn" data-act="dupEvent">Duplicate setup</button>
+      <span style="flex:1"></span>
+      ${delBtn('event:'+E.id,'delEvent',E.id,'Delete this event?').replace('>✕<','>Delete event<')}
+    </div>
+    <p class="note">Duplicate copies meal types, tables and cart settings into a new event with all counts at zero.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="mealH">
+    <h2 id="mealH">Meal types</h2>
+    <div><h2 style="font-size:12px;margin-bottom:4px">Standard</h2>${std.map(mealRow).join('')||'<p class="note">None</p>'}</div>
+    <div><h2 style="font-size:12px;margin-bottom:4px">Special / dietary</h2>${sp.map(mealRow).join('')||'<p class="note">None yet. Tap one below or add your own.</p>'}</div>
+    ${quick.length?`<div class="quick">${quick.map(q=>`<button class="btn" data-act="quickMeal" data-name="${esc(q)}">+ ${esc(q)}</button>`).join('')}</div>`:''}
+    <div class="row">
+      <input id="newMealName" placeholder="Custom meal, e.g. Fish" style="flex:1 1 160px" autocomplete="off">
+      <select id="newMealCat" aria-label="Group for new meal"><option value="special">Special</option><option value="standard">Standard</option></select>
+      <button class="btn primary" data-act="addMeal">Add</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="tabH">
+    <h2 id="tabH">Tables · ${E.tables.length}</h2>
+    <div class="row">
+      <input id="newTables" placeholder="e.g. 3, 4, 13, 14 or 1-10" style="flex:1 1 180px" autocomplete="off" inputmode="text">
+      <button class="btn primary" data-act="addTables">Add tables</button>
+    </div>
+    ${ui.msg?`<p class="note">${esc(ui.msg)}</p>`:''}
+    <div>${tableRows||'<p class="note">No tables yet.</p>'}</div>
+    ${E.tables.length>1?`<div class="row"><button class="btn" data-act="sortTables">Sort by number</button><span class="note">The order here is the order on the Tables screen and for suggested runs.</span></div>`:''}
+  </section>
+
+  <section class="panel" aria-labelledby="capH">
+    <h2 id="capH">Cart capacity</h2>
+    <div class="capgrid">
+      <label class="f">Total<input type="number" min="0" inputmode="numeric" id="cap-total" data-chg="cap" data-k="total" value="${+E.cap.total||0}"></label>
+      <label class="f">Top shelf<input type="number" min="0" inputmode="numeric" id="cap-top" data-chg="cap" data-k="top" value="${+E.cap.top||0}"></label>
+      <label class="f">Middle shelf<input type="number" min="0" inputmode="numeric" id="cap-middle" data-chg="cap" data-k="middle" value="${+E.cap.middle||0}"></label>
+    </div>
+    <label class="row" style="gap:10px;font-weight:600;cursor:pointer"><input type="checkbox" id="shelfAuto" data-chg="shelfAuto" ${E.shelf.auto?'checked':''} style="width:24px;height:24px;min-height:0">Auto shelf plan</label>
+    ${E.shelf.auto?`<p class="note">Biggest meal goes on top. Everything else goes in the middle. Overflow moves to the other shelf if there's room.</p>`
+      :`<p class="note">Tap the meals that go on the <b>top shelf</b>. Everything else goes in the middle. Overflow moves to the other shelf if there's room.</p>
+      <div class="quick">${E.meals.map(m=>{const on=E.shelf.top.includes(m.id);return `<button class="btn${on?' on':''}" data-act="shelfToggle" data-id="${m.id}" aria-pressed="${on}">${on?'✓ ':''}${esc(m.name)}</button>`}).join('')}</div>`}
+    <p class="note">Runs are checked against ${effCap(E)} meals (the smaller of the total and top + middle). Over-capacity runs get a warning but are still allowed.</p>
+  </section>
+  <p class="note" style="text-align:center">Saved on this device. ${plural(DB.events.length,'event')} stored.</p>`;
+}
+
+/* ---------- Render ---------- */
+function renderHeader(){
+  const E=ev(),tot=sum(E,E.tables.map(t=>t.id)).total;
+  $('#evName').textContent=E.name||'Untitled event';
+  $('#evSub').textContent=[fmtDate(E.date),plural(E.tables.length,'table')].filter(Boolean).join(' · ');
+  $('#evTot').textContent=tot;
+  const counted=E.tables.filter(t=>tTotal(E,t)>0).length;
+  $('#tabc-tables').textContent=`${counted}/${E.tables.length}`;
+  $('#tabc-runs').textContent=`${E.runs.length} · ${unassigned(E).length} left`;
+  $('#tabc-kitchen').textContent=`${tot} meals`;
+}
+function render(){
+  const E=ev();
+  ['tables','runs','kitchen','setup'].forEach(t=>{const b=$('#tab-'+t);b.classList.toggle('on',ui.tab===t);b.setAttribute('aria-current',ui.tab===t?'page':'false')});
+  view.className='wrap'+(ui.tab==='runs'||ui.tab==='kitchen'?' wide':'');
+  view.innerHTML=ui.tab==='tables'?vTables(E):ui.tab==='runs'?vRuns(E):ui.tab==='kitchen'?vKitchen(E):vSetup(E);
+  renderHeader();
+  if(ui.tab==='tables'){const c=document.getElementById('chip-'+ui.tableId);if(c)c.scrollIntoView({block:'nearest',inline:'center'})}
+}
+
+/* ---------- Actions ---------- */
+const moveIn=(arr,id,d)=>{const i=arr.findIndex(x=>x.id===id),j=i+d;if(i<0||j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]]};
+const orderIds=(E,ids)=>E.tables.filter(t=>ids.includes(t.id)).map(t=>t.id);
+const detach=(E,tid)=>E.runs.forEach(r=>{r.tables=r.tables.filter(x=>x!==tid)});
+function parseTables(str){
+  const out=[];str.split(/[,;\s]+/).filter(Boolean).forEach(tok=>{
+    const m=tok.match(/^(\d+)-(\d+)$/);
+    if(m){let a=+m[1],b=+m[2];if(a>b)[a,b]=[b,a];if(b-a<=200){for(let i=a;i<=b;i++)out.push(String(i));return}}
+    out.push(tok)});
+  return out;
+}
+const A={
+  goTab(b){ui.tab=b.dataset.tab;ui.armed=null;ui.copyText=null;ui.msg='';try{localStorage.setItem(KEY+'.tab',ui.tab)}catch(e){}render();window.scrollTo(0,0)},
+  selTable(b){ui.tableId=b.dataset.id;ui.noteOpen=false;render()},
+  stepTable(b){const E=ev(),i=E.tables.findIndex(t=>t.id===ui.tableId),n=E.tables[i+(+b.dataset.d)];if(n){ui.tableId=n.id;ui.noteOpen=false;render();window.scrollTo(0,0)}},
+  toggleNote(){ui.noteOpen=!ui.noteOpen;render();if(ui.noteOpen){const t=$('#tableNote');t&&t.focus()}},
+  pick(b){const id=b.dataset.id;ui.selected.has(id)?ui.selected.delete(id):ui.selected.add(id);render()},
+  selAll(){unassigned(ev()).forEach(t=>ui.selected.add(t.id));render()},
+  clearSel(){ui.selected.clear();render()},
+  newRun(){const E=ev(),ids=orderIds(E,[...ui.selected]);if(!ids.length)return;ids.forEach(id=>detach(E,id));E.runs.push({id:uid(),note:'',tables:ids});ui.selected.clear();ui.suggest=null;save();render()},
+  suggestRuns(){ui.suggest=suggest(ev());render()},
+  useSuggest(){const E=ev();(ui.suggest||[]).forEach(g=>{const ids=g.filter(id=>runIdx(E,id)<0);if(ids.length)E.runs.push({id:uid(),note:'',tables:ids})});ui.suggest=null;ui.selected.clear();save();render()},
+  dismissSuggest(){ui.suggest=null;render()},
+  runMove(b){moveIn(ev().runs,b.dataset.id,+b.dataset.d);save();render()},
+  runDel(b){const E=ev();E.runs=E.runs.filter(r=>r.id!==b.dataset.id);save();render()},
+  async copyKitchen(){const txt=kitchenText(ev());
+    try{await navigator.clipboard.writeText(txt);const b=document.querySelector('[data-act="copyKitchen"]');if(b){b.textContent='Copied';setTimeout(()=>{b.textContent='Copy for kitchen'},1500)}}
+    catch(e){ui.copyText=txt;render();const t=$('#copyOut');if(t){t.focus();t.select()}}},
+  newEvent(){const e=makeEvent();DB.events.unshift(e);DB.currentId=e.id;ui.tableId=null;ui.selected.clear();ui.suggest=null;save();render();const n=$('#evNameIn');if(n){n.focus();n.select()}},
+  dupEvent(){const E=ev(),e=makeEvent(E.name.replace(/^Copy of /,'')+' (copy)');
+    const map={};e.meals=E.meals.map(m=>{const id=uid();map[m.id]=id;return{id,name:m.name,cat:m.cat,note:m.note}});
+    e.tables=E.tables.map(t=>({id:uid(),num:t.num,note:'',counts:{}}));e.cap={...E.cap};e.shelf={auto:E.shelf.auto,top:E.shelf.top.map(id=>map[id]).filter(Boolean)};
+    DB.events.unshift(e);DB.currentId=e.id;ui.tableId=null;ui.selected.clear();ui.suggest=null;save();render()},
+  delEvent(b){if(!confirmed('event:'+b.dataset.id))return;DB.events=DB.events.filter(e=>e.id!==b.dataset.id);
+    if(!DB.events.length)DB.events.push(makeEvent());DB.currentId=DB.events[0].id;ui.tableId=null;ui.selected.clear();ui.suggest=null;save();render()},
+  shelfToggle(b){const s=ev().shelf,id=b.dataset.id;s.top=s.top.includes(id)?s.top.filter(x=>x!==id):[...s.top,id];save();render()},
+  quickMeal(b){ev().meals.push({id:uid(),name:b.dataset.name,cat:'special',note:''});save();render()},
+  addMeal(){const name=$('#newMealName').value.trim();if(!name){$('#newMealName').focus();return}
+    const E=ev();if(E.meals.some(m=>m.name.toLowerCase()===name.toLowerCase())){ui.msg='';$('#newMealName').value='';return}
+    E.meals.push({id:uid(),name,cat:$('#newMealCat').value,note:''});save();render();$('#newMealName').focus()},
+  mealMove(b){const E=ev(),m=E.meals.find(x=>x.id===b.dataset.id);if(!m)return;
+    const grp=E.meals.filter(x=>(x.cat==='special')===(m.cat==='special')),i=grp.indexOf(m),o=grp[i+(+b.dataset.d)];if(!o)return;
+    const a=E.meals.indexOf(m),c=E.meals.indexOf(o);[E.meals[a],E.meals[c]]=[E.meals[c],E.meals[a]];save();render()},
+  mealDel(b){const E=ev(),id=b.dataset.id,n=E.tables.reduce((a,t)=>a+cnt(t,id),0);
+    if(n&&!confirmed('meal:'+id))return;E.meals=E.meals.filter(m=>m.id!==id);E.shelf.top=E.shelf.top.filter(x=>x!==id);E.tables.forEach(t=>delete t.counts[id]);save();render()},
+  addTables(){const E=ev(),inp=$('#newTables'),toks=parseTables(inp.value);if(!toks.length){inp.focus();return}
+    const have=new Set(E.tables.map(t=>t.num.toLowerCase()));let added=0,skipped=[];
+    toks.forEach(n=>{if(have.has(n.toLowerCase())){skipped.push(n);return}have.add(n.toLowerCase());E.tables.push({id:uid(),num:n,note:'',counts:{}});added++});
+    ui.msg=`Added ${plural(added,'table')}.`+(skipped.length?` Already had ${skipped.join(', ')}.`:'');save();render();$('#newTables').focus()},
+  sortTables(){const E=ev();E.tables.sort((a,b)=>a.num.localeCompare(b.num,undefined,{numeric:true,sensitivity:'base'}));save();render()},
+  tableMove(b){moveIn(ev().tables,b.dataset.id,+b.dataset.d);save();render()},
+  tableDel(b){const E=ev(),t=tById(E,b.dataset.id);if(!t)return;if(tTotal(E,t)&&!confirmed('table:'+t.id))return;
+    E.tables=E.tables.filter(x=>x.id!==t.id);detach(E,t.id);ui.selected.delete(t.id);save();render()},
+};
+const C={ // change handlers (fire on blur / select change, so typing is never interrupted)
+  tableNote(el){const t=tById(ev(),ui.tableId);if(t){t.note=el.value.trim();save();renderHeader()}},
+  addToRun(el){const E=ev(),r=E.runs.find(x=>x.id===el.value);if(!r)return;const ids=orderIds(E,[...ui.selected]);ids.forEach(id=>detach(E,id));
+    r.tables=orderIds(E,[...r.tables,...ids]);ui.selected.clear();save();render()},
+  moveTable(el){const E=ev(),tid=el.dataset.id,v=el.value;if(!v)return;detach(E,tid);
+    if(v==='__new')E.runs.push({id:uid(),note:'',tables:[tid]});
+    else if(v!=='__un'){const r=E.runs.find(x=>x.id===v);if(r)r.tables=orderIds(E,[...r.tables,tid])}
+    save();render()},
+  runNote(el){const r=ev().runs.find(x=>x.id===el.dataset.id);if(r){r.note=el.value.trim();save()}},
+  evSwitch(el){DB.currentId=el.value;ui.tableId=null;ui.selected.clear();ui.suggest=null;save();render()},
+  evName(el){ev().name=el.value.trim()||'Untitled event';save();render()},
+  evDate(el){ev().date=el.value;save();render()},
+  evNotes(el){ev().notes=el.value;save()},
+  mealName(el){const E=ev(),m=E.meals.find(x=>x.id===el.dataset.id),v=el.value.trim();
+    if(!m)return;if(!v||E.meals.some(x=>x!==m&&x.name.toLowerCase()===v.toLowerCase())){el.value=m.name;return}m.name=v;save();render()},
+  mealCat(el){const m=ev().meals.find(x=>x.id===el.dataset.id);if(m){m.cat=el.value;save();render()}},
+  mealNote(el){const m=ev().meals.find(x=>x.id===el.dataset.id);if(m){m.note=el.value.trim();save()}},
+  tableNum(el){const E=ev(),t=tById(E,el.dataset.id),v=el.value.trim();if(!t)return;
+    if(!v||E.tables.some(x=>x!==t&&x.num.toLowerCase()===v.toLowerCase())){el.value=t.num;ui.msg=v?`Table ${v} already exists.`:'';render();return}
+    t.num=v;ui.msg='';save();render()},
+  shelfAuto(el){const E=ev();E.shelf.auto=el.checked;
+    if(!el.checked&&!E.shelf.top.length){const f=E.meals.find(m=>m.cat!=='special')||E.meals[0];if(f)E.shelf.top=[f.id]}save();render()},
+  cap(el){const n=Math.max(0,Math.round(+el.value||0));ev().cap[el.dataset.k]=n;save();render()},
+};
+
+/* Tap counter: one handler, increments on click; minus button handled first. */
+document.addEventListener('click',e=>{
+  const minus=e.target.closest('[data-minus]');if(minus){e.preventDefault();bump(minus.dataset.minus,-1);return}
+  const tile=e.target.closest('[data-tap]');if(tile){bump(tile.dataset.tap,1);return}
+  const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  const f=A[b.dataset.act];if(f)f(b,e);
+});
+document.addEventListener('keydown',e=>{
+  const tile=e.target.closest&&e.target.closest('[data-tap]');
+  if(tile&&e.target===tile&&(e.key==='Enter'||e.key===' ')){e.preventDefault();bump(tile.dataset.tap,1);return}
+  if(e.key==='Enter'){const id=e.target.id;
+    if(id==='newMealName')A.addMeal();else if(id==='newTables')A.addTables();
+    else if(e.target.matches('input[data-chg]'))e.target.blur()}
+});
+document.addEventListener('change',e=>{const el=e.target.closest('[data-chg]');if(!el)return;const f=C[el.dataset.chg];if(f)f(el)});
+render();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
